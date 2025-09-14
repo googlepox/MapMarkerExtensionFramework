@@ -73,9 +73,6 @@ namespace MapMarkerExtensionFramework
 			else {
 				ThisStdCall(0x58CED0, tile, 0xFE6, "Menus\\icons\\map\\map_icons_all.dds");
 			}
-			_MESSAGE("%f", a3);
-			_MESSAGE("markerName %s", markerData.ref->GetFullName()->name.m_data);
-			_MESSAGE("iconPath %s", markerData.iconPath.c_str());
 			ThisStdCall(originalAddress, tile, a2, a3);
 		}
 		static inline std::uint32_t originalAddress;
