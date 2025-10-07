@@ -61,17 +61,40 @@ namespace MapMarkerExtensionFramework
 		}
 	};
 
-	struct TileSetFloatHUDImpl
+	struct TileSetFloatHUDImplMarker
 	{
 		static void __fastcall TileSetFloatHook(Tile* tile, void* edx, DWORD* a2, float a3)
 		{
 			MarkerData markerData = Manager::GetSingleton()->GetMarkerDataHUD();
-			if (markerData.iconPath != "") {
-				a3 = 1.0;
-				ThisStdCall(0x58CED0, tile, 0xFE6, markerData.iconPath.c_str());
+			constexpr float QUEST_MARKER_TYPE = 99.0f;
+			const auto texVal = tile->GetValueByType(0xFE6);
+			std::string texture = texVal ? texVal->str.m_data : "";
+			bool isQuestIcon = texture.find("hud_compass_goal") != std::string::npos;
+			const auto typeVal = tile->GetValueByType(0xFB3);
+			float type = typeVal ? typeVal->num : -1.0f;
+			
+			// get tile height
+			float tileHeight = tile->GetValueByType(0xFCA)->num; // or whatever offset corresponds to height
+
+			// quest markers are slightly taller than normal
+			constexpr float QUEST_MARKER_HEIGHT_THRESHOLD = 20.0f;
+
+			// true if within epsilon range of quest marker type or texture path includes compass
+			bool isQuestMarker = tileHeight > QUEST_MARKER_HEIGHT_THRESHOLD && texture.contains("compass") && type == 99.0f;
+
+			if (!isQuestMarker) {
+				if (!markerData.iconPath.empty()) {
+					a3 = 1.0f;
+					ThisStdCall(0x58CED0, tile, 0xFE6, markerData.iconPath.c_str());
+				}
+				else
+				{
+					ThisStdCall(0x58CED0, tile, 0xFE6, "Menus\\icons\\map\\map_icons_all.dds");
+				}
 			}
-			else {
-				ThisStdCall(0x58CED0, tile, 0xFE6, "Menus\\icons\\map\\map_icons_all.dds");
+			else
+			{
+				ThisStdCall(0x58CED0, tile, 0xFE6, "Menus\\HUD\\hud_compass_goal.dds");
 			}
 			ThisStdCall(originalAddress, tile, a2, a3);
 		}
@@ -82,6 +105,23 @@ namespace MapMarkerExtensionFramework
 			originalAddress = 0x58CEB0;
 			WriteRelCall(0x5A7292, reinterpret_cast<std::uint32_t>(TileSetFloatHook));
 			_MESSAGE("Installed TileSetFloatHUD hook");
+		}
+	};
+
+	struct TileSetFloatHUDImplQuest
+	{
+		static void __fastcall TileSetFloatHook(Tile* tile, void* edx, DWORD* a2, float a3)
+		{
+			ThisStdCall(0x58CED0, tile, 0xFE6, "Menus\\HUD\\hud_compass_goal.dds");
+			ThisStdCall(originalAddress, tile, a2, a3);
+		}
+		static inline std::uint32_t originalAddress;
+
+		static void Install()
+		{
+			originalAddress = 0x58CEB0;
+			WriteRelCall(0x5A7534, reinterpret_cast<std::uint32_t>(TileSetFloatHook));
+			_MESSAGE("Installed TileSetFloatHUD2 hook");
 		}
 	};
 
@@ -111,7 +151,8 @@ namespace MapMarkerExtensionFramework
 		_MESSAGE("-HOOKS-");
 		MapMarkerExtraDataImpl::Install();
 		TileSetFloatMenuImpl::Install();
-		TileSetFloatHUDImpl::Install();
+		TileSetFloatHUDImplMarker::Install();
+		TileSetFloatHUDImplQuest::Install();
 		GetModelPathImpl::Install();
 		_MESSAGE("Installed all hooks");
 
